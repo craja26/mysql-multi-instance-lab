@@ -1,0 +1,177 @@
+#!/bin/bash
+# location: /usr/local/bin/mysql_init
+# sudo chmod 755 /usr/local/bin/mysql_init
+# parse: sudo bash -n /usr/local/bin/mysql_init
+
+
+ACTION="$1"
+INSTANCE="$2"
+
+usage() {
+    echo "Usage: $0 {start|stop|status|restart} {instance_name}"
+    exit 1
+}
+
+if [ -z "$ACTION" ] || [ -z "$INSTANCE" ]; then
+    usage
+fi
+
+# Dynamic paths based on instance naming convention
+CONFIG="/etc/my.cnf.d/$INSTANCE/my.cnf"
+DATADIR="/data/$INSTANCE/mysqldata"
+SOCKET="/data/$INSTANCE/temp/$INSTANCE.sock"
+PIDFILE="/data/$INSTANCE/temp/$INSTANCE.pid"
+
+# Validate instance configuration
+if [ ! -f "$CONFIG" ]; then
+    echo "ERROR: Configuration file not found:"
+    echo "$CONFIG"
+    exit 1
+fi
+
+if [ ! -d "$DATADIR" ]; then
+    echo "ERROR: Datadir not found:"
+    echo "$DATADIR"
+    exit 1
+fi
+
+if [ ! -d "$(dirname "$SOCKET")" ]; then
+    echo "ERROR: Temp directory not found:"
+    echo "$(dirname "$SOCKET")"
+    exit 1
+fi
+
+case "$ACTION" in
+
+    start)
+        echo "Starting $INSTANCE..."
+
+        if [ -f "$PIDFILE" ]; then
+            PID=$(cat "$PIDFILE" 2>/dev/null)
+
+            if [ -n "$PID" ] && [ -d "/proc/$PID" ]; then
+                echo "Status: ALREADY RUNNING"
+                echo "PID: $PID"
+                exit 0
+            fi
+        fi
+
+        echo "Starting mysqld_safe..."
+
+        mysqld_safe \
+            --defaults-file="$CONFIG" \
+            --user=mysql >/dev/null 2>&1 &
+
+        echo "Waiting for MySQL to start..."
+
+        for i in {1..30}; do
+            if [ -f "$PIDFILE" ]; then
+                PID=$(cat "$PIDFILE" 2>/dev/null)
+
+                if [ -n "$PID" ] && [ -d "/proc/$PID" ]; then
+                    echo "Status: RUNNING"
+                    echo "PID: $PID"
+                    echo "Socket: $SOCKET"
+                    exit 0
+                fi
+            fi
+
+            sleep 1
+        done
+
+        echo "ERROR: MySQL did not start within 30 seconds."
+        exit 1
+        ;;
+
+    stop)
+        echo "Stopping $INSTANCE..."
+
+        if [ ! -f "$PIDFILE" ]; then
+            echo "Status: STOPPED"
+            exit 0
+        fi
+
+        PID=$(cat "$PIDFILE" 2>/dev/null)
+
+        if [ -z "$PID" ] || [ ! -d "/proc/$PID" ]; then
+            echo "Status: STOPPED"
+            exit 0
+        fi
+
+        echo "PID: $PID"
+        echo "Requesting graceful shutdown..."
+
+        mysqladmin \
+            --socket="$SOCKET" \
+            -uroot \
+            -p \
+            shutdown
+
+        if [ $? -ne 0 ]; then
+            echo "ERROR: Graceful shutdown request failed."
+            exit 1
+        fi
+
+        echo "Waiting for MySQL to stop..."
+
+        for i in {1..30}; do
+            if [ ! -d "/proc/$PID" ]; then
+                echo "Status: STOPPED"
+                exit 0
+            fi
+
+            sleep 1
+        done
+
+        echo "ERROR: MySQL did not stop within 30 seconds."
+        echo "No force kill was performed."
+        exit 1
+        ;;
+
+    status)
+        echo "Checking status of $INSTANCE..."
+
+        if [ ! -f "$PIDFILE" ]; then
+            echo "Status: STOPPED"
+            exit 0
+        fi
+
+        PID=$(cat "$PIDFILE" 2>/dev/null)
+
+        if [ -n "$PID" ] && [ -d "/proc/$PID" ]; then
+            echo "Status: RUNNING"
+            echo "PID: $PID"
+            echo "Socket: $SOCKET"
+            echo "Datadir: $DATADIR"
+        else
+            echo "Status: STOPPED"
+        fi
+        ;;
+
+    restart)
+        echo "Restarting $INSTANCE..."
+
+        "$0" stop "$INSTANCE"
+        STOP_RC=$?
+
+        if [ $STOP_RC -ne 0 ]; then
+            echo "ERROR: Restart aborted because stop failed."
+            exit 1
+        fi
+
+        "$0" start "$INSTANCE"
+        START_RC=$?
+
+        if [ $START_RC -ne 0 ]; then
+            echo "ERROR: Restart failed because start failed."
+            exit 1
+        fi
+
+        echo "Restart completed successfully."
+        ;;
+
+    *)
+        usage
+        ;;
+
+esac
