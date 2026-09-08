@@ -61,7 +61,7 @@ sudo restorecon -Rv /data/finapp
 ```
 
 ---
-##FINAPP clone from mysql01
+## FINAPP clone from mysql01
 ```Bash
 mysql01 lo instance graceful ga stop:
 ```
@@ -87,7 +87,7 @@ sudo rm -f /data/finapp/mysqldata/auto.cnf
 ```
 
 ---
-##FINAPP config on mysql02
+## FINAPP config on mysql02
 mysql01 config copy:
 ```Bash
 sudo scp /etc/my.cnf.d/finapp/my.cnf \
@@ -116,7 +116,7 @@ sudo mysqld \
 ```
 
 ---
-##HRAPP
+## HRAPP
 Same process:
 ```Bash
 sudo mkdir -p \
