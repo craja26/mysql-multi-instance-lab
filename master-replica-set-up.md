@@ -76,6 +76,12 @@ Commit ayina binlog events disk ki sync cheyyadaniki durability improve chestund
 
 `binlog_expire_logs_seconds=2592000`
 30 days approximately binlogs retain cheyyadaniki. We can modify it as per our environment
+Validate changes:
+```Bash
+sudo mysqld \
+  --defaults-file=/etc/my.cnf.d/hrapp/my.cnf \
+  --validate-config
+```
 
 ---
 # 3. Verify Binary Logging
