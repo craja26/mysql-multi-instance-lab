@@ -79,7 +79,7 @@ Commit ayina binlog events disk ki sync cheyyadaniki durability improve chestund
 Validate changes:
 ```Bash
 sudo mysqld \
-  --defaults-file=/etc/my.cnf.d/hrapp/my.cnf \
+  --defaults-file=/etc/my.cnf.d/finapp/my.cnf \
   --validate-config
 ```
 
