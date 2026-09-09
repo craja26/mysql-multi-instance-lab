@@ -195,6 +195,10 @@ Verify:
 sudo /usr/local/bin/mysql_init status finapp
 sudo /usr/local/bin/mysql_init status hrapp
 ```
+Listening ip address:
+```Bash
+ sudo ss -lntp | grep 3306
+```
 
 ---
 
